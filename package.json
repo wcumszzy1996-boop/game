@@ -1,0 +1,33 @@
+{
+  "name": "starstrike",
+  "productName": "星锋突击 STARSTRIKE",
+  "version": "1.0.0",
+  "description": "星锋突击 STARSTRIKE — 2D 竖版太空卷轴射击（Three.js / WebGL2，全程序化美术与音效）",
+  "author": {
+    "name": "STARSTRIKE"
+  },
+  "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "icon": "node scripts/make-icon.mjs",
+    "app": "node scripts/build.mjs && electron .",
+    "pack": "node scripts/package.mjs",
+    "dist:win": "node scripts/build.mjs && node scripts/package.mjs --platform win32 --arch x64",
+    "dist:mac": "node scripts/build.mjs && node scripts/package.mjs --platform darwin --arch arm64",
+    "dist:linux": "node scripts/build.mjs && node scripts/package.mjs --platform linux --arch x64",
+    "verify": "node tools/cdp-verify.mjs",
+    "probe": "node tools/probe-layers.mjs",
+    "check:app": "node tools/app-check.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "optionalDependencies": {
+    "electron": "32.3.3",
+    "electron-packager": "^17.1.2"
+  }
+}

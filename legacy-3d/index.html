@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#05030c" />
+<title>星锋突击 STARSTRIKE</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305030c'/%3E%3Cpath d='M16 4l4.6 9.4 9.4 1.4-7 6.8 1.7 9.4L16 26.6 7.3 31l1.7-9.4-7-6.8 9.4-1.4z' fill='%235fe8ff'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --c1: #5fe8ff;
+    --c2: #ff4d9e;
+    --c3: #ffc23d;
+    --bg: #05030c;
+    --panel: rgba(10, 14, 26, 0.82);
+    --line: rgba(95, 232, 255, 0.28);
+    --txt: #dff2ff;
+    --dim: #7d93a8;
+    --font: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "Consolas", "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: var(--bg); color: var(--txt);
+    font-family: var(--font); user-select: none; overscroll-behavior: none;
+  }
+  #app { position: fixed; inset: 0; }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ---------------- HUD ---------------- */
+  #hud {
+    position: absolute; inset: 0; pointer-events: none;
+    font-size: 13px; letter-spacing: 0.02em;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  .hud-block {
+    position: absolute; background: linear-gradient(180deg, rgba(8,14,26,0.72), rgba(8,14,26,0.42));
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 22px rgba(0,0,0,0.45), inset 0 0 18px rgba(95,232,255,0.05);
+  }
+  .hud-top { top: 12px; left: 50%; transform: translateX(-50%); min-width: 320px; text-align: center; }
+  .hud-left { top: 12px; left: 12px; min-width: 216px; }
+  .hud-right { top: 12px; right: 12px; text-align: right; min-width: 152px; }
+  .hud-power { bottom: 12px; left: 12px; display: flex; gap: 8px; padding: 7px 9px; }
+
+  .hud-level { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 0.16em; }
+  .hud-code { font-family: var(--mono); font-size: 10px; color: var(--c1); opacity: 0.85; letter-spacing: 0.14em; margin-top: 1px; }
+  .hud-timer { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--c1); margin-top: 3px; line-height: 1; text-shadow: 0 0 12px rgba(95,232,255,0.6); }
+  .hud-progress { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .hud-progress > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--c1), #fff); transition: width 0.2s linear; box-shadow: 0 0 10px var(--c1); }
+  .hud-progress > i.boss { background: linear-gradient(90deg, var(--c2), var(--c3)); box-shadow: 0 0 10px var(--c2); }
+
+  .stat { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-family: var(--mono); }
+  .stat:first-child { margin-top: 0; }
+  .stat .k { font-size: 10px; color: var(--dim); width: 34px; letter-spacing: 0.08em; }
+  .stat .v { font-size: 14px; font-weight: 700; color: #fff; }
+  .stat.active .v { color: var(--c1); text-shadow: 0 0 10px rgba(95,232,255,0.8); }
+  .hud-right .stat { justify-content: flex-end; }
+  .hud-right .stat .k { text-align: right; }
+
+  .bar { flex: 1; height: 8px; background: rgba(255,255,255,0.09); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); }
+  .bar > i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #2fe6d0, #7ff5ff); transition: width 0.12s linear; }
+
+  #hud-combo {
+    position: absolute; top: 118px; right: 12px; font-family: var(--mono); font-size: 15px; font-weight: 700;
+    color: var(--c3); text-shadow: 0 0 14px rgba(255,194,61,0.85); opacity: 0; transition: opacity 0.25s; text-align: right;
+  }
+  #hud-combo.show { opacity: 1; }
+
+  /* 强化等级 */
+  .pw { display: flex; flex-direction: column; align-items: center; min-width: 42px; transition: opacity 0.2s; }
+  .pw.lv0 { opacity: 0.32; }
+  .pw-g {
+    width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    font-family: var(--mono); font-weight: 800; font-size: 13px; color: #06121a;
+    background: var(--c); box-shadow: 0 0 12px var(--c), inset 0 0 6px rgba(255,255,255,0.7);
+  }
+  .pw-v { font-family: var(--mono); font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px; }
+  .pw-l { font-size: 9px; color: var(--dim); letter-spacing: 0.06em; }
+
+  /* BOSS 血条 */
+  #boss-bar {
+    position: absolute; top: 96px; left: 50%; transform: translateX(-50%); width: min(620px, 74vw);
+    text-align: center; transition: opacity 0.3s;
+  }
+  #boss-bar.hidden { opacity: 0; }
+  .boss-name { font-size: 12px; letter-spacing: 0.2em; color: var(--c2); text-shadow: 0 0 12px rgba(255,77,158,0.8); font-weight: 700; }
+  .boss-track { height: 10px; margin-top: 5px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,77,158,0.45); border-radius: 5px; overflow: hidden; box-shadow: 0 0 18px rgba(255,77,158,0.28); }
+  #boss-fill { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff2e6b, #ffb03b, #fff6b0); transition: width 0.18s linear; }
+  #boss-bar.enrage .boss-track { animation: ragePulse 0.9s infinite; }
+  @keyframes ragePulse { 0%,100% { border-color: rgba(255,77,158,0.45); } 50% { border-color: rgba(255,220,120,0.95); } }
+  #boss-phase { font-family: var(--mono); font-size: 10px; color: var(--c3); margin-top: 3px; letter-spacing: 0.16em; }
+
+  /* 横幅 */
+  #banner {
+    position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%) scale(0.94);
+    font-size: clamp(30px, 6.4vw, 62px); font-weight: 900; letter-spacing: 0.16em; text-align: center;
+    color: #fff; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; white-space: nowrap;
+    text-shadow: 0 0 30px rgba(95,232,255,0.85), 0 0 70px rgba(95,232,255,0.4);
+  }
+  #banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #banner.warn { color: #ffd9e6; text-shadow: 0 0 26px rgba(255,46,107,1), 0 0 70px rgba(255,46,107,0.6); animation: warnFlash 0.7s infinite; }
+  #banner.clear { color: #d8fff4; text-shadow: 0 0 30px rgba(47,230,208,0.95), 0 0 80px rgba(47,230,208,0.5); }
+  @keyframes warnFlash { 0%,100% { opacity: 1; } 50% { opacity: 0.42; } }
+  #banner-sub { display: block; font-size: clamp(12px, 2vw, 17px); font-weight: 500; letter-spacing: 0.3em; color: var(--c1); margin-top: 10px; text-shadow: 0 0 18px rgba(95,232,255,0.7); }
+
+  /* ---------------- 覆盖层 UI ---------------- */
+  #ui { position: absolute; inset: 0; }
+  .overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 40%, rgba(20,10,45,0.62), rgba(3,2,10,0.92));
+    backdrop-filter: blur(9px); z-index: 10;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    width: min(880px, 92vw); max-height: 92vh; overflow-y: auto; padding: 30px 34px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 24px 90px rgba(0,0,0,0.7), inset 0 0 60px rgba(95,232,255,0.045);
+  }
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-thumb { background: rgba(95,232,255,0.3); border-radius: 3px; }
+
+  .title { font-size: clamp(28px, 5.4vw, 52px); font-weight: 900; letter-spacing: 0.16em; line-height: 1;
+    background: linear-gradient(100deg, #ffffff 0%, var(--c1) 42%, var(--c2) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle { font-family: var(--mono); font-size: 11px; letter-spacing: 0.42em; color: var(--c1); opacity: 0.85; margin-top: 8px; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); margin: 20px 0; }
+  .sec-title { font-size: 12px; letter-spacing: 0.24em; color: var(--dim); margin-bottom: 10px; font-weight: 700; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .card {
+    position: relative; padding: 15px 16px; border-radius: 10px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+    transition: all 0.18s; overflow: hidden;
+  }
+  .card:hover { border-color: var(--ac, var(--c1)); background: rgba(95,232,255,0.07); transform: translateY(-2px); }
+  .card.sel { border-color: var(--ac, var(--c1)); background: rgba(95,232,255,0.11); box-shadow: 0 0 26px rgba(95,232,255,0.2), inset 0 0 24px rgba(95,232,255,0.06); }
+  .card.sel::after { content: "▸ 已选择"; position: absolute; top: 8px; right: 10px; font-size: 10px; color: var(--ac, var(--c1)); letter-spacing: 0.1em; }
+  .card h3 { font-size: 19px; letter-spacing: 0.1em; margin-bottom: 3px; }
+  .card .en { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; color: var(--ac, var(--c1)); }
+  .card p { font-size: 12px; color: var(--dim); line-height: 1.65; margin-top: 9px; }
+  .card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,255,255,0.07); color: #bcd6e8; }
+
+  .lv-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .lv-cards .card { padding: 12px; }
+  .lv-cards .card h3 { font-size: 15px; }
+
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 22px; }
+  button {
+    font-family: var(--font); font-size: 15px; font-weight: 700; letter-spacing: 0.14em;
+    padding: 13px 30px; border-radius: 9px; cursor: pointer; border: 1px solid var(--c1);
+    background: linear-gradient(180deg, rgba(95,232,255,0.22), rgba(95,232,255,0.06)); color: #eafcff;
+    transition: all 0.16s;
+  }
+  button:hover { background: linear-gradient(180deg, rgba(95,232,255,0.4), rgba(95,232,255,0.12)); box-shadow: 0 0 26px rgba(95,232,255,0.34); }
+  button.ghost { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); color: var(--dim); }
+  button.ghost:hover { border-color: rgba(255,255,255,0.45); color: #fff; box-shadow: none; }
+  button.primary { font-size: 17px; padding: 15px 46px; }
+
+  .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 7px 18px; font-size: 12px; color: var(--dim); margin-top: 4px; }
+  .keys b { color: #cfe8f7; font-family: var(--mono); font-weight: 600; }
+  .hint { font-size: 12px; color: var(--dim); line-height: 1.8; }
+  .hint b { color: var(--c3); }
+
+  .score-big { font-family: var(--mono); font-size: clamp(34px, 7vw, 64px); font-weight: 800; color: #fff; text-shadow: 0 0 30px rgba(95,232,255,0.6); }
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-top: 8px; }
+  .result-grid .item { padding: 12px; border-radius: 9px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08); }
+  .result-grid .item .k { font-size: 11px; color: var(--dim); letter-spacing: 0.16em; }
+  .result-grid .item .v { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--c1); margin-top: 4px; }
+
+  /* 移动端按钮 */
+  #touch-ui { position: absolute; inset: 0; pointer-events: none; display: none; }
+  .touch-btn {
+    position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); width: 76px; height: 76px; border-radius: 50%;
+    border: 2px solid rgba(255,194,61,0.55); background: rgba(255,194,61,0.13); backdrop-filter: blur(4px);
+    display: grid; place-items: center; font-weight: 800; color: var(--c3); font-size: 13px; letter-spacing: 0.08em;
+    pointer-events: auto;
+  }
+  #touch-bomb { right: 18px; }
+  #touch-focus { right: 106px; border-color: rgba(95,232,255,0.5); background: rgba(95,232,255,0.1); color: var(--c1); }
+  @media (pointer: coarse) { #touch-ui { display: block; } }
+
+  .corner { position: absolute; bottom: 12px; right: 12px; font-family: var(--mono); font-size: 10px; color: var(--dim); opacity: 0.7; text-align: right; line-height: 1.6; }
+  .fps { font-family: var(--mono); font-size: 10px; color: var(--dim); opacity: 0.65; }
+  #err { position: absolute; inset: 0; display: none; place-items: center; background: #06060c; color: #ffb0b0; font-family: var(--mono); padding: 40px; text-align: center; line-height: 1.8; z-index: 99; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud">
+    <div class="hud-block hud-top">
+      <div class="hud-level" id="hud-level">星云边境</div>
+      <div class="hud-code" id="hud-level-code">SECTOR 01 · VESPER NEBULA</div>
+      <div class="hud-timer" id="hud-timer">3:00</div>
+      <div class="hud-progress"><i id="hud-progress-fill"></i></div>
+    </div>
+
+    <div class="hud-block hud-left">
+      <div class="stat">
+        <span class="k">盾值</span>
+        <span class="bar"><i id="hud-hp-fill"></i></span>
+        <span class="v" id="hud-hp-text" style="font-size:11px">100/100</span>
+      </div>
+      <div class="stat">
+        <span class="k">护盾</span><span class="v" id="hud-shield">×0</span>
+        <span class="k" style="margin-left:8px">机体</span><span class="v" id="hud-lives">×3</span>
+      </div>
+      <div class="stat">
+        <span class="k">核弹</span><span class="v" id="hud-bombs">×2</span>
+      </div>
+    </div>
+
+    <div class="hud-block hud-right">
+      <div class="stat"><span class="k">积分</span><span class="v" id="hud-score">0</span></div>
+      <div class="stat"><span class="k">DPS</span><span class="v" id="hud-dps">0</span></div>
+      <div class="stat"><span class="k">FPS</span><span class="v fps" id="hud-fps">60</span></div>
+    </div>
+
+    <div class="hud-block hud-power" id="hud-powers"></div>
+    <div id="hud-combo"></div>
+
+    <div id="boss-bar" class="hidden">
+      <div class="boss-name" id="boss-name">BOSS</div>
+      <div class="boss-track"><i id="boss-fill"></i></div>
+      <div id="boss-phase"></div>
+    </div>
+  </div>
+
+  <div id="banner"><span id="banner-text"></span><span id="banner-sub"></span></div>
+
+  <!-- ================= 移动端 ================= -->
+  <div id="touch-ui">
+    <div class="touch-btn" id="touch-focus">聚焦</div>
+    <div class="touch-btn" id="touch-bomb">核弹</div>
+  </div>
+
+  <!-- ================= 菜单 ================= -->
+  <div id="ui">
+    <div class="overlay" id="menu">
+      <div class="panel">
+        <div class="title">星锋突击</div>
+        <div class="subtitle">S T A R S T R I K E &nbsp;·&nbsp; 2.5D SPACE COMBAT</div>
+        <p class="hint" style="margin-top:14px">
+          三片星域的封锁线已经越过。<b>SF-71「星锋」</b>原型机已挂载完毕，摧毁三艘旗舰即为任务完成。
+          强化模块可<b>无限叠加</b>——活得越久，火力越离谱。
+        </p>
+
+        <div class="divider"></div>
+        <div class="sec-title">选择难度</div>
+        <div class="cards" id="diff-cards"></div>
+
+        <div class="sec-title" style="margin-top:20px">出击关卡</div>
+        <div class="lv-cards" id="lv-cards"></div>
+
+        <div class="divider"></div>
+        <div class="sec-title">操作</div>
+        <div class="keys">
+          <div><b>WASD / ↑↓←→</b> 移动</div>
+          <div><b>鼠标 / 触屏拖动</b> 直接跟随</div>
+          <div><b>自动开火</b> 无需按键</div>
+          <div><b>空格 / 右键</b> 释放核弹</div>
+          <div><b>Shift / 触屏聚焦</b> 精确微操</div>
+          <div><b>P / Esc</b> 暂停</div>
+        </div>
+
+        <div class="row">
+          <button class="primary" id="btn-start">开 始 出 击</button>
+          <button class="ghost" id="btn-mute">音效：开</button>
+          <button class="ghost" id="btn-full">全屏</button>
+        </div>
+        <div class="hint" style="margin-top:10px">历史最高分：<b id="best-score">0</b></div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="pause">
+      <div class="panel" style="width:min(420px,90vw);text-align:center">
+        <div class="title" style="font-size:34px">暂停</div>
+        <div class="subtitle">P A U S E D</div>
+        <div class="row" style="justify-content:center;margin-top:26px">
+          <button id="btn-resume">继续战斗</button>
+        </div>
+        <div class="row" style="justify-content:center;margin-top:10px">
+          <button class="ghost" id="btn-restart">重新开始</button>
+          <button class="ghost" id="btn-quit">返回主菜单</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="result">
+      <div class="panel" style="width:min(600px,92vw);text-align:center">
+        <div class="title" id="res-title" style="font-size:40px">任务完成</div>
+        <div class="subtitle" id="res-sub">MISSION COMPLETE</div>
+        <div class="score-big" id="res-score" style="margin-top:20px">0</div>
+        <div class="sec-title" style="margin-top:6px">最终积分</div>
+        <div class="result-grid" style="margin-top:20px">
+          <div class="item"><div class="k">难度</div><div class="v" id="res-diff">普通</div></div>
+          <div class="item"><div class="k">到达关卡</div><div class="v" id="res-level">1 / 3</div></div>
+          <div class="item"><div class="k">累计强化</div><div class="v" id="res-power">0</div></div>
+          <div class="item"><div class="k">历史最高</div><div class="v" id="res-best">0</div></div>
+        </div>
+        <div class="row" style="justify-content:center;margin-top:26px">
+          <button class="primary" id="btn-again">再来一局</button>
+          <button class="ghost" id="btn-menu">返回主菜单</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="corner">WASD/鼠标 · 自动开火 · 空格核弹 · P 暂停</div>
+  <div id="err"></div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
